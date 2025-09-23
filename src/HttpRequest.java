@@ -86,6 +86,9 @@ public class HttpRequest {
         }
     }
 
+    /**
+     * 判断长连接
+     */
     public boolean isKeepAlive() {
         String connection = headers.getOrDefault("Connection", "");
         return "keep-alive".equalsIgnoreCase(connection) ||
