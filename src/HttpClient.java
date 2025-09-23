@@ -25,7 +25,7 @@ public class HttpClient {
         try {
             OutputStream out = socket.getOutputStream();
 
-            String request = "GET" + path + "HTTP/1.1\r\n" +
+            String request = "GET" + " " + path + " " + "HTTP/1.1\r\n" +
                     "Host: " + host + ":" + port + "\r\n" +
                     "Connection: keep-alive\r\n" +
                     "User-Agent: SimpleJavaHttpClient/1.0\r\n" +

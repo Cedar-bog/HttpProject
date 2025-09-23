@@ -26,45 +26,20 @@ public class HttpServer {
 
     private static void handleRequest(Socket clientSocket) {
         try (clientSocket;
-             BufferedReader in = new BufferedReader(
-                     new InputStreamReader(clientSocket.getInputStream()));
+             InputStream in = clientSocket.getInputStream();
              OutputStream out = clientSocket.getOutputStream()) {
 
             boolean keepAlive = true;
 
-            //长连接
             while (keepAlive) {
-                String requestLine = in.readLine();
-                if (requestLine == null) break;
-                System.out.println("请求行：" + requestLine);
+                HttpRequest request = new HttpRequest(in);
+                System.out.println("接收到请求：\n" + request);
+                keepAlive = request.isKeepAlive();
 
-                String[] requestParts = requestLine.split(" ");
-                if (requestParts.length < 2) {
-                    sendErrorResponse(out, 400, "Bad Request", false);
-                    break;
-                }
-
-                String method = requestParts[0];
-                String path = requestParts[1];
-
-                System.out.println("请求头：");
-                String headerLine;
-                boolean connectionClose = false;
-                while ((headerLine = in.readLine()) != null && !headerLine.isEmpty()) {
-                    System.out.println(headerLine);
-                    if (headerLine.equalsIgnoreCase("Connection: close")) {
-                        connectionClose = true;
-                    }
-                }
-
-                if (path.equals("/")) {
-                    sendResponse(out, 200, "text/html", "<html><body><h1>Hello, World!</h1></body></html>", !connectionClose);
+                if (request.getPath().equals("/")) {
+                    sendResponse(out, 200, "text/html", "<html><body><h1>Hello, World!</h1></body></html>", keepAlive);
                 } else {
-                    sendErrorResponse(out, 404, "Not Found", !connectionClose);
-                }
-
-                if (connectionClose) {
-                    keepAlive = false;
+                    sendErrorResponse(out, 404, "Not Found", keepAlive);
                 }
             }
 
@@ -100,8 +75,12 @@ public class HttpServer {
     private static String getStatusText(int statusCode) {
         return switch (statusCode) {
             case 200 -> "OK";
-            case 400 -> "Bad Request";
+            case 301 -> "Moved Permanently";
+            case 302 -> "Found";
+            case 304 -> "Not Modified";
             case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
+            case 500 -> "Internal Server Error";
             default -> "Unknown Status";
         };
     }
