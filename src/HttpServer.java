@@ -17,6 +17,7 @@ public class HttpServer {
                 System.out.println("接收到来自" + clientSocket.getInetAddress() + "的连接");
                 handleRequest(clientSocket);
             }
+
         } catch (IOException e) {
             System.out.println("服务器启动时发生错误：" + e.getMessage());
             throw new RuntimeException(e);
@@ -32,7 +33,11 @@ public class HttpServer {
 
             while (keepAlive) {
                 HttpRequest request = new HttpRequest(in);
-                System.out.println("接收到请求：\n" + request);
+                if (request.getMethod() == null || request.getPath() == null) {
+                    System.out.println("客户端已关闭");
+                    break;
+                }
+                System.out.println("接收到请求：\n" + request + "\n");
                 keepAlive = request.isKeepAlive();
 
                 HttpResponse response = new HttpResponse(out);
