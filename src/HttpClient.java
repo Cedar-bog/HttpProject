@@ -13,6 +13,7 @@ public class HttpClient {
     private static final int port = 8080;
     private static final int MAX_REDIRECTS = 5;
     private static int redirectCount = 0;
+    private static final Map<String, CachedResponse> responseCache = new HashMap<> ();
 
     private static final Map<String, String> MIME_TYPES = new HashMap<>();
     static {
@@ -40,11 +41,42 @@ public class HttpClient {
     }
 
     private static void executeRequest(Socket socket, String method, String path, String body) {
-        try (OutputStream out = socket.getOutputStream()) {
+        try (OutputStream out = socket.getOutputStream();
+             InputStream in = socket.getInputStream()) {
 
             HttpRequest request = new HttpRequest(method, path, body);
             request.send(out);
-            HttpResponse response = new HttpResponse(request, socket);
+            HttpResponse response = new HttpResponse(in);
+
+            if (response.statusCode == 301 || response.statusCode == 302) {
+                String location = response.headers.get("Location");
+                if (redirectCount < MAX_REDIRECTS) {
+                    //由于仅针对本地固定服务器，忽略了重定向至其他主机或端口时需新建Socket的情况
+                    executeRequest(socket, request.method, location);
+                    redirectCount++;
+                } else {
+                    System.out.println("重定向次数过多，已停止重定向。");
+                }
+            } else if (response.statusCode == 304) {
+                String cacheKey = method + ":" + path;
+                CachedResponse cached = responseCache.get(cacheKey);
+                if (cached != null) {
+                    response.body = cached.body;
+                    response.savedFilePath = cached.savedFilePath;
+                } else {
+                    System.out.println("收到304响应，但未找到缓存内容");
+                }
+            } else if (response.statusCode == 200 && "GET".equals(method)) {
+                String cacheKey = method + ":" + path;
+                CachedResponse cached = new CachedResponse();
+                cached.body = response.body;
+                cached.savedFilePath = response.savedFilePath;
+                cached.lastModified = response.headers.get("Last-Modified");
+                cached.eTag = response.headers.get("ETag");
+
+                responseCache.put(cacheKey, cached);
+                System.out.println("已缓存响应：" + cacheKey);
+            }
 
             System.out.println("服务器响应：\n" + response);
 
@@ -52,6 +84,13 @@ public class HttpClient {
             System.out.println("发送请求失败：" + e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    private static class CachedResponse {
+        byte[] body;
+        String savedFilePath;
+        String lastModified;
+        String eTag;
     }
 
     @Getter
@@ -75,6 +114,7 @@ public class HttpClient {
             setUserAgent("HttpClient/1.0");
             setKeepAlive(true);
 
+            addConditionalHeaders();
             setContentTypeBasedOnPath(path);
         }
 
@@ -109,6 +149,25 @@ public class HttpClient {
                 return path.substring(lastDotIndex + 1).toLowerCase();
             }
             return "html";
+        }
+
+        private void addConditionalHeaders() {
+            if (!"GET".equals(method)) {
+                return;
+            }
+
+            String cacheKey = method + ":" + path;
+            CachedResponse cached = responseCache.get(cacheKey);
+
+            if (cached != null) {
+                if (cached.lastModified != null) {
+                    setHeader("If-Modified-Since", cached.lastModified);
+                }
+
+                if (cached.eTag != null) {
+                    setHeader("If-None-Match", cached.eTag);
+                }
+            }
         }
 
         public String toString() {
@@ -146,22 +205,10 @@ public class HttpClient {
         private byte[] body;
         private String savedFilePath;
 
-        public HttpResponse(HttpRequest request, Socket socket) {
+        public HttpResponse(InputStream inputStream) {
             this.headers = new HashMap<>();
-            try (InputStream inputStream = socket.getInputStream()) {
+            try {
                 parseResponse(inputStream);
-
-                if (statusCode == 301 || statusCode == 302) {
-                    String location = headers.get("Location");
-                    if (redirectCount < MAX_REDIRECTS) {
-                        //由于仅针对本地固定服务器，忽略了重定向至其他主机或端口时需新建Socket的情况
-                        executeRequest(socket, request.method, location);
-                        redirectCount++;
-                    } else {
-                        System.out.println("重定向次数过多，已停止重定向。");
-                    }
-                }
-
             } catch (IOException e) {
                 System.out.println("解析响应失败：" + e.getMessage());
                 throw new RuntimeException(e);
@@ -191,6 +238,10 @@ public class HttpClient {
                     String value = line.substring(colonIndex + 1).trim();
                     headers.put(key, value);
                 }
+            }
+
+            if (statusCode == 304) {
+                return;
             }
 
             //解析响应正文
@@ -229,6 +280,12 @@ public class HttpClient {
 
         public String toString() {
             StringBuilder response = new StringBuilder(version + " " + statusCode + " " + statusText + "\r\n");
+
+            if (statusCode == 304) {
+                response.append("[资源未修改]\r\n");
+                return response.toString();
+            }
+
             for (Map.Entry<String, String> header : headers.entrySet()) {
                 response.append(header.getKey()).append(": ").append(header.getValue()).append("\r\n");
             }
