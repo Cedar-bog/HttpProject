@@ -1,3 +1,5 @@
+package server;
+
 import lombok.Getter;
 import java.io.BufferedReader;
 import java.io.IOException;

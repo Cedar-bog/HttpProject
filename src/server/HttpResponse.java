@@ -1,3 +1,5 @@
+package server;
+
 import lombok.Setter;
 
 import java.io.IOException;
