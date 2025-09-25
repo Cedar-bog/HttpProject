@@ -28,12 +28,12 @@ public class HttpClient {
              OutputStream out = socket.getOutputStream();
              InputStream in = socket.getInputStream()) {
             System.out.println("连接成功！");
+            System.out.println("按下回车以获取帮助");
             while (true) {
-                System.out.print("\n输入请求行：");
                 String input = scanner.nextLine();
                 String[] parts = input.split(" ", 3);
                 String method = (parts[0].isEmpty() ? "GET" : parts[0].toUpperCase());
-                String path = parts.length > 1 ? parts[1] : "/";
+                String path = parts.length > 1 ? parts[1].toLowerCase() : "/";
                 String body = parts.length > 2 ? parts[2] : null;
                 executeRequest(out, in, method, path, body);
             }
@@ -69,7 +69,7 @@ public class HttpClient {
             } else {
                 System.out.println("收到304响应，但未找到缓存内容");
             }
-        } else if (response.statusCode == 200 && "GET".equals(method)) {
+        } else if (response.statusCode == 200 && "GET".equals(method) && "/image".equals(path)) {
             String cacheKey = method + ":" + path;
             CachedResponse cached = new CachedResponse();
             cached.body = response.body;
@@ -78,7 +78,7 @@ public class HttpClient {
             cached.eTag = response.headers.get("ETag");
 
             responseCache.put(cacheKey, cached);
-            System.out.println("\n已缓存响应：" + cacheKey);
+            System.out.println("\n已缓存响应：\n" + cacheKey);
         }
     }
 

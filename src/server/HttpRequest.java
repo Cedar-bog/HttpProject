@@ -6,7 +6,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 @Getter
 public class HttpRequest {
@@ -37,7 +36,7 @@ public class HttpRequest {
 
         //解析请求头
         String line;
-        while (!(Objects.requireNonNull(line = readLine(inputStream, lineBuffer))).isEmpty()) {
+        while ((line = readLine(inputStream, lineBuffer)) != null && !line.isEmpty()) {
             int colonIndex = line.indexOf(":");
             if (colonIndex > 0) {
                 String key = line.substring(0, colonIndex).trim();

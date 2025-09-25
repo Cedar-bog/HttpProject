@@ -5,7 +5,7 @@ import java.net.*;
 
 public class HttpServer {
     private static final int port = 8080;
-    private static final int SO_TIMEOUT = 5000000;
+    private static final int SO_TIMEOUT = 60000;
     private static final HttpRouter httpRouter = new HttpRouter();
 
     public static void main(String[] args) {

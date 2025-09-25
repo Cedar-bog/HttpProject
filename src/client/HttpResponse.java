@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 class HttpResponse {
     private String version;
@@ -43,7 +42,7 @@ class HttpResponse {
 
         // 解析响应头
         String line;
-        while (!(Objects.requireNonNull(line = readLine(inputStream, lineBuffer))).isEmpty()) {
+        while ((line = readLine(inputStream, lineBuffer)) != null && !line.isEmpty()) {
             int colonIndex = line.indexOf(":");
             if (colonIndex > 0) {
                 String key = line.substring(0, colonIndex).trim();
@@ -98,7 +97,7 @@ class HttpResponse {
         if (contentType == null) return;
 
         if (contentType.startsWith("image/png")) {
-            savePngFile(System.currentTimeMillis() + ".png");
+            savePngFile("client/" + System.currentTimeMillis() + ".png");
         }
     }
 

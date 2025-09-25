@@ -24,9 +24,10 @@ class HttpRequest {
         this.path = path;
 
         if ("POST".equalsIgnoreCase(method) && path.equals("/image")) {
-            String filePath = new String(body, StandardCharsets.UTF_8);
             try {
+                String filePath = new String(body, StandardCharsets.UTF_8);
                 body = Files.readAllBytes(Paths.get(filePath));
+                setContentType("image/png");
             } catch (IOException e) {
                 System.out.println("读取文件失败：" + e.getMessage());
                 throw new RuntimeException(e);
@@ -43,7 +44,6 @@ class HttpRequest {
         setKeepAlive(true);
 
         addConditionalHeaders();
-        setContentTypeBasedOnPath(path);
     }
 
     public void setHeader(String key, String value) {
@@ -66,22 +66,8 @@ class HttpRequest {
         setHeader("Connection", keepAlive ? "keep-alive" : "close");
     }
 
-    private void setContentTypeBasedOnPath(String path) {
-        String extension = getFileExtension(path);
-        String contentType = HttpClient.MIME_TYPES.getOrDefault(extension, "text/plain; charset=utf-8");
-        setContentType(contentType);
-    }
-
-    private String getFileExtension(String path) {
-        int lastDotIndex = path.lastIndexOf('.');
-        if (lastDotIndex > 0 && lastDotIndex < path.length() - 1) {
-            return path.substring(lastDotIndex + 1).toLowerCase();
-        }
-        return "";
-    }
-
     private void addConditionalHeaders() {
-        if (!"GET".equals(method)) {
+        if (!"GET".equals(method) || !"/image".equals(path)) {
             return;
         }
 

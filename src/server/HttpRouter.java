@@ -1,7 +1,9 @@
 package server;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,7 +11,9 @@ public class HttpRouter {
     private static final Map<String, String> users = new HashMap<>();
 
     static {
-        new File("images/").mkdirs();
+        if (new File("server/").mkdirs()) {
+            System.out.println("创建静态文件目录成功");
+        }
     }
 
     public void route(HttpRequest request, HttpResponse response) {
@@ -20,30 +24,32 @@ public class HttpRouter {
         response.setKeepAlive(request.isKeepAlive());
 
         //路由分发
-        if ("/".equals(path) || "/index.html".equals(path)) {
-            handleIndex(response);
-        } else if ("/register".equals(path)) {
-            if ("POST".equalsIgnoreCase(method)) {
-                handleRegister(request, response);
-            } else {
-                response.sendMethodNotAllowed();
+        switch (path) {
+            case "/", "/index.html" -> handleIndex(response);
+            case "/register" -> {
+                if ("POST".equalsIgnoreCase(method)) {
+                    handleRegister(request, response);
+                } else {
+                    response.sendMethodNotAllowed();
+                }
             }
-        } else if ("/login".equals(path)) {
-            if ("POST".equalsIgnoreCase(method)) {
-                handleLogin(request, response);
-            } else {
-                response.sendMethodNotAllowed();
+            case "/login" -> {
+                if ("POST".equalsIgnoreCase(method)) {
+                    handleLogin(request, response);
+                } else {
+                    response.sendMethodNotAllowed();
+                }
             }
-        } else if (path.startsWith("/image/")) {
-            if ("GET".equalsIgnoreCase(method)) {
-                //handleDownload(request, response);
-            } else if ("POST".equalsIgnoreCase(method)) {
-                //handleUpload(request, response);
-            } else {
-                response.sendMethodNotAllowed();
+            case ("/image") -> {
+                if ("GET".equalsIgnoreCase(method)) {
+                    handleDownload(response);
+                } else if ("POST".equalsIgnoreCase(method)) {
+                    handleUpload(request, response);
+                } else {
+                    response.sendMethodNotAllowed();
+                }
             }
-        } else {
-            response.sendNotFound();
+            case null, default -> response.sendNotFound();
         }
     }
 
@@ -153,6 +159,58 @@ public class HttpRouter {
         return params;
     }
 
-    //todo png处理
+    /**
+     * 处理下载图像
+     */
+    private void handleDownload(HttpResponse response) {
+        try {
+            File imageFile = new File("server/image.png");
+
+            if (!imageFile.exists()) {
+                response.sendNotFound();
+                return;
+            }
+
+            byte[] imageData = Files.readAllBytes(imageFile.toPath());
+
+            response.setMimeType("png");
+            response.setBody(imageData);
+
+            response.send();
+        } catch (IOException e) {
+            System.out.println("下载处理错误: " + e.getMessage());
+            response.sendInternalServerError();
+        }
+    }
+
+    /**
+     * 处理上传图像
+     */
+    private void handleUpload(HttpRequest request, HttpResponse response) {
+        try {
+            byte[] imageData = request.getBody();
+
+            if (imageData == null) {
+                response.sendOK("{\"success\": false, \"message\": \"上传失败，请检查文件路径\"}");
+                return;
+            }
+
+            File imageFile = new File("server/image.png");
+
+            File parentDir = imageFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                if (parentDir.mkdirs()) {
+                    System.out.println("创建目录成功：" + parentDir.getAbsolutePath());
+                }
+            }
+            Files.write(imageFile.toPath(), imageData);
+
+            response.sendOK("{\"success\": true, \"message\": \"上传成功\"}");
+        } catch (IOException e) {
+            System.out.println("上传处理错误: " + e.getMessage());
+            response.sendInternalServerError();
+        }
+    }
+
     //todo 304处理
 }
