@@ -78,7 +78,7 @@ public class HttpClient {
             cached.eTag = response.headers.get("ETag");
 
             responseCache.put(cacheKey, cached);
-            System.out.println("\n已缓存响应：\n" + cacheKey);
+            System.out.println("\n已缓存响应：" + cacheKey + "\n");
         }
     }
 

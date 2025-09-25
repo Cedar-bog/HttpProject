@@ -105,14 +105,13 @@ class HttpResponse {
         Path filePath = Paths.get(filename);
         Files.write(filePath, body);
         this.savedFilePath = filePath.toAbsolutePath().toString();
-        System.out.println("文件已保存到：" + savedFilePath);
     }
 
     public String toString() {
         StringBuilder response = new StringBuilder(version + " " + statusCode + " " + statusText + "\r\n");
 
         if (statusCode == 304) {
-            response.append("[资源未修改]\r\n");
+            response.append("\r\n[资源未修改]\r\n");
             return response.toString();
         }
 

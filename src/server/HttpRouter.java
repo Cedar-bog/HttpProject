@@ -42,7 +42,7 @@ public class HttpRouter {
             }
             case ("/image") -> {
                 if ("GET".equalsIgnoreCase(method)) {
-                    handleDownload(response);
+                    handleDownload(request, response);
                 } else if ("POST".equalsIgnoreCase(method)) {
                     handleUpload(request, response);
                 } else {
@@ -162,7 +162,7 @@ public class HttpRouter {
     /**
      * 处理下载图像
      */
-    private void handleDownload(HttpResponse response) {
+    private void handleDownload(HttpRequest request, HttpResponse response) {
         try {
             File imageFile = new File("server/image.png");
 
@@ -171,7 +171,17 @@ public class HttpRouter {
                 return;
             }
 
+            if (request.getHeaders().containsKey("If-Modified-Since")) {
+                if (imageFile.lastModified() <= Long.parseLong(request.getHeaders().get("If-Modified-Since"))) {
+                    response.sendNotModified();
+                    return;
+                }
+            }
+
             byte[] imageData = Files.readAllBytes(imageFile.toPath());
+
+            long lastModified = imageFile.lastModified();
+            response.setHeader("Last-Modified", String.valueOf(lastModified));
 
             response.setMimeType("png");
             response.setBody(imageData);
@@ -211,6 +221,4 @@ public class HttpRouter {
             response.sendInternalServerError();
         }
     }
-
-    //todo 304处理
 }
