@@ -5,7 +5,8 @@ import java.net.*;
 
 public class HttpServer {
     private static final int port = 8080;
-    private static final int SO_TIMEOUT = 5000;
+    private static final int SO_TIMEOUT = 5000000;
+    private static final HttpRouter httpRouter = new HttpRouter();
 
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -39,11 +40,17 @@ public class HttpServer {
                     System.out.println("客户端已关闭");
                     break;
                 }
-                System.out.println("接收到请求：\n" + request + "\n");
+                System.out.println("\n接收到请求：\n" + request + "\n");
                 keepAlive = request.isKeepAlive();
 
-                //todo 路由处理
-                //todo 响应构建
+                HttpResponse response = new HttpResponse(out);
+
+                try {
+                    httpRouter.route(request, response);
+                } catch (Exception e) {
+                    System.out.println("路由处理错误: " + e.getMessage());
+                    response.sendInternalServerError();
+                }
             }
 
         } catch (SocketTimeoutException e) {

@@ -118,7 +118,7 @@ public class HttpResponse {
 
             System.out.println("已发送响应：\n" + response + (body == null ? "" : (
                     headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
-                            "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
+                            "[二进制数据 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
         } catch (IOException e) {
             System.out.println("发送响应失败：" + e.getMessage());
             throw new RuntimeException(e);

@@ -28,13 +28,11 @@ public class HttpClient {
              OutputStream out = socket.getOutputStream();
              InputStream in = socket.getInputStream()) {
             System.out.println("连接成功！");
-            System.out.println("请求格式： <方法> <路径> [请求体/文件地址]");
-            System.out.println("示例： GET /index.html");
-            System.out.println("示例： POST /image.png C:\\picture\\image.png");
             while (true) {
+                System.out.print("\n输入请求行：");
                 String input = scanner.nextLine();
                 String[] parts = input.split(" ", 3);
-                String method = parts[0].toUpperCase();
+                String method = (parts[0].isEmpty() ? "GET" : parts[0].toUpperCase());
                 String path = parts.length > 1 ? parts[1] : "/";
                 String body = parts.length > 2 ? parts[2] : null;
                 executeRequest(out, in, method, path, body);
@@ -51,7 +49,7 @@ public class HttpClient {
         request.send(out);
         HttpResponse response = new HttpResponse(in);
 
-        System.out.println("服务器响应：\n" + response);
+        System.out.println("\n服务器响应：\n" + response);
 
         if (response.statusCode == 301 || response.statusCode == 302) {
             String location = response.headers.get("Location");
@@ -80,7 +78,7 @@ public class HttpClient {
             cached.eTag = response.headers.get("ETag");
 
             responseCache.put(cacheKey, cached);
-            System.out.println("已缓存响应：" + cacheKey);
+            System.out.println("\n已缓存响应：" + cacheKey);
         }
     }
 

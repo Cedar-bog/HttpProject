@@ -2,13 +2,11 @@ package server;
 
 import lombok.Getter;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Getter
 public class HttpRequest {
@@ -24,10 +22,10 @@ public class HttpRequest {
     }
 
     private void parseRequest(InputStream inputStream) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        ByteArrayOutputStream lineBuffer = new ByteArrayOutputStream();
 
         //解析请求行
-        String requestLine = bufferedReader.readLine();
+        String requestLine = readLine(inputStream, lineBuffer);
         if (requestLine != null) {
             String[] parts = requestLine.split(" ");
             if (parts.length >= 3) {
@@ -39,7 +37,7 @@ public class HttpRequest {
 
         //解析请求头
         String line;
-        while ((line = bufferedReader.readLine()) != null && !line.isEmpty()) {
+        while (!(Objects.requireNonNull(line = readLine(inputStream, lineBuffer))).isEmpty()) {
             int colonIndex = line.indexOf(":");
             if (colonIndex > 0) {
                 String key = line.substring(0, colonIndex).trim();
@@ -64,6 +62,25 @@ public class HttpRequest {
         }
     }
 
+    private String readLine(InputStream inputStream, ByteArrayOutputStream lineBuffer) throws IOException {
+        lineBuffer.reset();
+        int b;
+        while ((b = inputStream.read()) != -1) {
+            if (b == '\n') {
+                break;
+            }
+            if (b != '\r') {
+                lineBuffer.write(b);
+            }
+        }
+
+        if (lineBuffer.size() == 0 && b == -1) {
+            return null;
+        }
+
+        return lineBuffer.toString(StandardCharsets.UTF_8);
+    }
+
     /**
      * 判断长连接
      */
@@ -79,6 +96,6 @@ public class HttpRequest {
                 "headers:" + headers + "\n" +
                 (body == null ? "" : "body:" + (
                         headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
-                                "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8)));
+                                "[二进制数据 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8)));
     }
 }

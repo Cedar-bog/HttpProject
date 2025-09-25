@@ -23,7 +23,7 @@ class HttpRequest {
         this.method = method;
         this.path = path;
 
-        if ("POST".equals(method) && path.endsWith(".png")) {
+        if ("POST".equalsIgnoreCase(method) && path.equals("/image")) {
             String filePath = new String(body, StandardCharsets.UTF_8);
             try {
                 body = Files.readAllBytes(Paths.get(filePath));
@@ -68,7 +68,7 @@ class HttpRequest {
 
     private void setContentTypeBasedOnPath(String path) {
         String extension = getFileExtension(path);
-        String contentType = HttpClient.MIME_TYPES.getOrDefault(extension, "application/octet-stream");
+        String contentType = HttpClient.MIME_TYPES.getOrDefault(extension, "text/plain; charset=utf-8");
         setContentType(contentType);
     }
 
@@ -119,9 +119,9 @@ class HttpRequest {
             }
 
             out.flush();
-            System.out.println("HTTP 请求已发送：\n" + this + (body == null ? "" : (
+            System.out.println("\nHTTP 请求已发送：\n" + this + (body == null ? "" : (
                     headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
-                            "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
+                            "[二进制数据 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
         } catch (IOException e) {
             System.out.println("发送请求失败：" + e.getMessage());
             throw new RuntimeException(e);

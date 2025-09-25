@@ -1,15 +1,13 @@
 package client;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 class HttpResponse {
     private String version;
@@ -30,10 +28,10 @@ class HttpResponse {
     }
 
     private void parseResponse(InputStream inputStream) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        ByteArrayOutputStream lineBuffer = new ByteArrayOutputStream();
 
-        //解析响应行
-        String responseLine = bufferedReader.readLine();
+        // 解析响应行
+        String responseLine = readLine(inputStream, lineBuffer);
         if (responseLine != null) {
             String[] parts = responseLine.split(" ", 3);
             if (parts.length >= 3) {
@@ -43,9 +41,9 @@ class HttpResponse {
             }
         }
 
-        //解析响应头
+        // 解析响应头
         String line;
-        while ((line = bufferedReader.readLine()) != null && !line.isEmpty()) {
+        while (!(Objects.requireNonNull(line = readLine(inputStream, lineBuffer))).isEmpty()) {
             int colonIndex = line.indexOf(":");
             if (colonIndex > 0) {
                 String key = line.substring(0, colonIndex).trim();
@@ -58,7 +56,7 @@ class HttpResponse {
             return;
         }
 
-        //解析响应正文
+        // 解析响应正文
         if (headers.containsKey("Content-Length")) {
             int contentLength = Integer.parseInt(headers.get("Content-Length"));
             if (contentLength > 0) {
@@ -71,12 +69,31 @@ class HttpResponse {
                 }
                 this.body = bodyBytes;
 
-                handleBodyBasedOnContentType();
+                handleBody();
             }
         }
     }
 
-    private void handleBodyBasedOnContentType() throws IOException {
+    private String readLine(InputStream inputStream, ByteArrayOutputStream lineBuffer) throws IOException {
+        lineBuffer.reset();
+        int b;
+        while ((b = inputStream.read()) != -1) {
+            if (b == '\n') {
+                break;
+            }
+            if (b != '\r') {
+                lineBuffer.write(b);
+            }
+        }
+
+        if (lineBuffer.size() == 0 && b == -1) {
+            return null;
+        }
+
+        return lineBuffer.toString(StandardCharsets.UTF_8);
+    }
+
+    private void handleBody() throws IOException {
         String contentType = headers.get("Content-Type");
         if (contentType == null) return;
 
