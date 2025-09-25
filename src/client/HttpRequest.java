@@ -107,15 +107,6 @@ class HttpRequest {
 
         request.append("\r\n");
 
-        if (body != null) {
-            if (headers.containsKey("Content-Type") &&
-                    headers.get("Content-Type").startsWith("image/")) {
-                request.append("[二进制数据 - ").append(body.length).append(" 字节]");
-            } else {
-                request.append(new String(body, StandardCharsets.UTF_8));
-            }
-        }
-
         return request.toString();
     }
 
@@ -128,7 +119,9 @@ class HttpRequest {
             }
 
             out.flush();
-            System.out.println("HTTP 请求已发送：\n" + this);
+            System.out.println("HTTP 请求已发送：\n" + this + (body == null ? "" : (
+                    headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
+                            "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
         } catch (IOException e) {
             System.out.println("发送请求失败：" + e.getMessage());
             throw new RuntimeException(e);

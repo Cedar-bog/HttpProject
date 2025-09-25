@@ -15,7 +15,7 @@ public class HttpResponse {
     private int statusCode;
     private String statusText;
     private final Map<String, String> headers;
-    private String body;
+    private byte[] body;
 
     public HttpResponse(OutputStream outputStream) {
         this.outputStream = outputStream;
@@ -31,7 +31,7 @@ public class HttpResponse {
     /**
      * 设置状态码和描述
      */
-    public void setStatus(int statusCode) {
+    void setStatus(int statusCode) {
         this.statusCode = statusCode;
         this.statusText = switch (statusCode) {
             case 200 -> "OK";
@@ -48,29 +48,29 @@ public class HttpResponse {
     /**
      * 设置响应头
      */
-    public void setHeader(String key, String value) {
+    void setHeader(String key, String value) {
         headers.put(key, value);
     }
 
     /**
      * 设置响应体
      */
-    public void setBody(String body) {
+    void setBody(byte[] body) {
         this.body = body;
-        setHeader("Content-Length", String.valueOf(body.length()));
+        setHeader("Content-Length", String.valueOf(body.length));
     }
 
     /**
      * 设置Content-Type
      */
-    public void setContentType(String contentType) {
+    void setContentType(String contentType) {
         setHeader("Content-Type", contentType);
     }
 
     /**
      * 设置重定向
      */
-    public void setRedirect(String location) {
+    void setRedirect(String location) {
         if (statusCode == 301 || statusCode == 302) {
             setHeader("Location", location);
         }
@@ -79,94 +79,91 @@ public class HttpResponse {
     /**
      * 设置长连接
      */
-    public void setKeepAlive(boolean keepAlive) {
+    void setKeepAlive(boolean keepAlive) {
         setHeader("Connection", keepAlive ? "keep-alive" : "close");
-    }
-
-    /**
-     * 发送响应
-     */
-    public void send() throws IOException {
-        StringBuilder response = new StringBuilder(version + " " + statusCode + " " + statusText + "\r\n");
-        for (Map.Entry<String, String> header : headers.entrySet()) {
-            response.append(header.getKey()).append(": ").append(header.getValue()).append("\r\n");
-        }
-
-        response.append("\r\n");
-
-        if (body != null) {
-            response.append(body);
-        }
-
-        outputStream.write(response.toString().getBytes(StandardCharsets.UTF_8));
-        outputStream.flush();
     }
 
     /**
      * 设置常用MIME类型
      */
-    public void setMimeType(String fileExtension) {
+    void setMimeType(String fileExtension) {
         switch (fileExtension.toLowerCase()) {
             case "html":
-            case "htm":
                 setContentType("text/html; charset=utf-8");
-                break;
-            case "css":
-                setContentType("text/css");
-                break;
-            case "js":
-                setContentType("application/javascript");
-                break;
-            case "json":
-                setContentType("application/json");
-                break;
-            case "jpg":
-            case "jpeg":
-                setContentType("image/jpeg");
                 break;
             case "png":
                 setContentType("image/png");
-                break;
-            case "gif":
-                setContentType("image/gif");
                 break;
             default:
                 setContentType("text/plain; charset=utf-8");
         }
     }
 
-    /**
-     * 发送错误响应
-     */
-    public void sendError(int code, String message) throws IOException {
-        setStatus(code);
-        setContentType("text/html; charset=utf-8");
+    void send() {
+        try {
+            StringBuilder response = new StringBuilder(version + " " + statusCode + " " + statusText + "\r\n");
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                response.append(header.getKey()).append(": ").append(header.getValue()).append("\r\n");
+            }
 
-        String errorPage = "<html><head><title>Error " + code + "</title></head>" +
-                "<body><h1>Error " + code + ": " + statusText + "</h1>" +
-                "<p>" + message + "</p></body></html>";
+            response.append("\r\n");
 
-        setBody(errorPage);
-        send();
+            outputStream.write(response.toString().getBytes(StandardCharsets.UTF_8));
+
+            if (body != null) {
+                outputStream.write(body);
+            }
+
+            outputStream.flush();
+
+            System.out.println("已发送响应：\n" + response + (body == null ? "" : (
+                    headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
+                            "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8))));
+        } catch (IOException e) {
+            System.out.println("发送响应失败：" + e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 
-    /**
-     * 发送重定向响应
-     */
-    public void sendRedirect(String location) throws IOException {
-        setStatus(302);
-        setHeader("Location", location);
-        setBody("<html><body>Redirecting to <a href=\"" + location + "\">" + location + "</a></body></html>");
-        send();
-    }
-
-    /**
-     * 发送成功响应
-     */
-    public void sendSuccess(String content) throws IOException {
+    void sendOK(String content) {
         setStatus(200);
         setContentType("text/html; charset=utf-8");
-        setBody(content);
+        setBody(content.getBytes());
+        send();
+    }
+
+    void sendRedirect(String location, boolean permanent) {
+        setStatus(permanent ? 301 : 302);
+        setRedirect(location);
+        setContentType("text/html; charset=utf-8");
+        setBody(("<html><body><h1>" + statusCode + " " + statusText + "</h1><p>Redirect to <a href=\"" +
+                location + "\">" + location + "</a></p></body></html>").getBytes());
+        send();
+    }
+
+    void sendNotModified() {
+        setStatus(304);
+        send();
+    }
+
+    void sendNotFound() {
+        setStatus(404);
+        setContentType("text/html; charset=utf-8");
+        setBody(("<html><body><h1>404 Not Found</h1><p>The requested resource was not found on this server.</p></body></html>").getBytes());
+        send();
+    }
+
+    void sendMethodNotAllowed() {
+        setStatus(405);
+        setContentType("text/html; charset=utf-8");
+        setBody(("<html><body><h1>405 Method Not Allowed</h1><p>The request method is not supported for the requested resource.</p></body></html>").getBytes());
+        send();
+    }
+
+    void sendInternalServerError() {
+        setStatus(500);
+        setContentType("text/html; charset=utf-8");
+        setBody(("<html><body><h1>500 Internal Server Error</h1><p>Something went wrong on the server.</p></body></html>").getBytes());
         send();
     }
 }

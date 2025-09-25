@@ -1,10 +1,12 @@
 package server;
 
 import lombok.Getter;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,17 +14,12 @@ import java.util.Map;
 public class HttpRequest {
     private String method;
     private String path;
-    private String fullPath;
-    private final Map<String, String> formParams;
-    private String version;
+    private String protocol;
     private final Map<String, String> headers;
-    private String body;
-    private final Map<String, String> queryParams;
+    private byte[] body;
 
     public HttpRequest(InputStream inputStream) throws IOException {
         this.headers = new HashMap<>();
-        this.formParams = new HashMap<>();
-        this.queryParams = new HashMap<>();
         parseRequest(inputStream);
     }
 
@@ -35,14 +32,8 @@ public class HttpRequest {
             String[] parts = requestLine.split(" ");
             if (parts.length >= 3) {
                 this.method = parts[0];
-                this.fullPath = parts[1];
-                this.version = parts[2];
-
-                String[] pathParts = parts[1].split("\\?");
-                this.path = pathParts[0];
-                if (pathParts.length > 1) {
-                    parseParams(pathParts[1], queryParams);
-                }
+                this.path = parts[1];
+                this.protocol = parts[2];
             }
         }
 
@@ -61,29 +52,14 @@ public class HttpRequest {
         if (headers.containsKey("Content-Length")) {
             int contentLength = Integer.parseInt(headers.get("Content-Length"));
             if (contentLength > 0) {
-                char[] bodyChars = new char[contentLength];
-                if (bufferedReader.read(bodyChars, 0, contentLength) > 0) {
-                    this.body = new String(bodyChars);
-
-                    if (headers.getOrDefault("Content-Type", "").contains("application/x-www-form-urlencoded")) {
-                        parseParams(this.body, formParams);
-                    }
+                byte[] bodyBytes = new byte[contentLength];
+                int bytesRead = 0;
+                while (bytesRead < contentLength) {
+                    int n = inputStream.read(bodyBytes, bytesRead, contentLength - bytesRead);
+                    if (n == -1) break;
+                    bytesRead += n;
                 }
-            }
-        }
-    }
-
-    /**
-     * 解析查询参数/表单数据
-     */
-    private void parseParams(String string, Map<String, String> params) {
-        String[] pairs = string.split("&");
-        for (String pair : pairs) {
-            String[] keyValue = pair.split("=", 2);
-            if (keyValue.length == 2) {
-                params.put(keyValue[0], keyValue[1]);
-            } else {
-                params.put(keyValue[0], "");
+                this.body = bodyBytes;
             }
         }
     }
@@ -94,13 +70,15 @@ public class HttpRequest {
     public boolean isKeepAlive() {
         String connection = headers.getOrDefault("Connection", "");
         return "keep-alive".equalsIgnoreCase(connection) ||
-                ("HTTP/1.1".equals(version) && !"close".equalsIgnoreCase(connection));
+                ("HTTP/1.1".equals(protocol) && !"close".equalsIgnoreCase(connection));
     }
 
     @Override
     public String toString() {
-        return method + " " + fullPath + " " + version + "\n" +
+        return method + " " + path + " " + protocol + "\n" +
                 "headers:" + headers + "\n" +
-                "body:" + body;
+                (body == null ? "" : "body:" + (
+                        headers.containsKey("Content-Type") && !headers.get("Content-Type").startsWith("text") ?
+                                "[二进制文件 - " + body.length + "字节]" : new String(body, StandardCharsets.UTF_8)));
     }
 }

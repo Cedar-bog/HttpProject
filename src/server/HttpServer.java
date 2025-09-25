@@ -42,14 +42,8 @@ public class HttpServer {
                 System.out.println("接收到请求：\n" + request + "\n");
                 keepAlive = request.isKeepAlive();
 
-                HttpResponse response = new HttpResponse(out);
-                response.setKeepAlive(keepAlive);
-
-                if (request.getPath().equals("/")) {
-                    response.sendSuccess("<html><body><h1>Hello, World!</h1></body></html>");
-                } else {
-                    response.sendError(404, "Not Found");
-                }
+                //todo 路由处理
+                //todo 响应构建
             }
 
         } catch (SocketTimeoutException e) {
