@@ -11,7 +11,7 @@ public class HttpRouter {
     private static final Map<String, String> users = new HashMap<>();
 
     static {
-        if (new File("server/").mkdirs()) {
+        if (new File("images/").mkdirs()) {
             System.out.println("创建静态文件目录成功");
         }
     }
@@ -164,7 +164,7 @@ public class HttpRouter {
      */
     private void handleDownload(HttpRequest request, HttpResponse response) {
         try {
-            File imageFile = new File("server/image.png");
+            File imageFile = new File("images/image.png");
 
             if (!imageFile.exists()) {
                 response.sendNotFound();
@@ -205,7 +205,7 @@ public class HttpRouter {
                 return;
             }
 
-            File imageFile = new File("server/image.png");
+            File imageFile = new File("images/image.png");
 
             File parentDir = imageFile.getParentFile();
             if (parentDir != null && !parentDir.exists()) {

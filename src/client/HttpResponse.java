@@ -97,7 +97,7 @@ class HttpResponse {
         if (contentType == null) return;
 
         if (contentType.startsWith("image/png")) {
-            savePngFile("client/" + System.currentTimeMillis() + ".png");
+            savePngFile("images/saved/" + System.currentTimeMillis() + ".png");
         }
     }
 
